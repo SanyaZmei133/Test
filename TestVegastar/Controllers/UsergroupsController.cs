@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TestVegastar.Models;
+using TestVegastar.ModelsDTO;
 
 namespace TestVegastar.Controllers
 {
@@ -14,10 +16,12 @@ namespace TestVegastar.Controllers
     public class UsergroupsController : ControllerBase
     {
         private readonly UsersdbContext _context;
+        private readonly IMapper _mapper;
 
-        public UsergroupsController(UsersdbContext context)
+        public UsergroupsController(UsersdbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         // GET: api/Usergroups
@@ -28,7 +32,9 @@ namespace TestVegastar.Controllers
           {
               return NotFound();
           }
-            return await _context.Usergroups.ToListAsync();
+            var usergroups =  _mapper.Map<List<UsergroupDto>>( await _context.Usergroups.ToListAsync());
+
+            return Ok(usergroups);
         }
 
         // GET: api/Usergroups/5
@@ -39,14 +45,17 @@ namespace TestVegastar.Controllers
           {
               return NotFound();
           }
-            var usergroup = await _context.Usergroups.FindAsync(id);
+            var usergroup = _mapper.Map<UsergroupDto>(await _context.Usergroups.FindAsync(id));
 
             if (usergroup == null)
             {
                 return NotFound();
             }
 
-            return usergroup;
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            return Ok(usergroup);
         }
 
         // PUT: api/Usergroups/5
@@ -83,16 +92,33 @@ namespace TestVegastar.Controllers
         // POST: api/Usergroups
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Usergroup>> PostUsergroup(Usergroup usergroup)
+        public async Task<ActionResult<Usergroup>> PostUsergroup([FromBody] UsergroupDto usergroupCreate)
         {
           if (_context.Usergroups == null)
           {
-              return Problem("Entity set 'UsersdbContext.Usergroups'  is null.");
+              return BadRequest(ModelState);
           }
-            _context.Usergroups.Add(usergroup);
+
+            var usergroup = _context.Usergroups.ToList()
+                .Where(g => g.Code.Trim().ToUpper() == usergroupCreate.Code.TrimEnd().ToUpper())
+                .FirstOrDefault();
+
+            if (usergroup != null)
+            {
+                ModelState.AddModelError("", "Usergroup already exists");
+                return StatusCode(422, ModelState);
+            }
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var usergroupMap = _mapper.Map<Usergroup>(usergroupCreate);
+
+            _context.Usergroups.Add(usergroupMap);
+            
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetUsergroup", new { id = usergroup.Id }, usergroup);
+            return Ok("Success");
         }
 
         // DELETE: api/Usergroups/5
