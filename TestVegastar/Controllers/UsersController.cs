@@ -161,8 +161,10 @@ namespace TestVegastar.Controllers
 
             if (user.Userstateid == 1)
             {
-                user.Usergroupid = 2;
+                user.Userstateid = 2;
             }
+            else
+                return BadRequest("User already blocked");
 
             _context.Update(user);
             await _context.SaveChangesAsync();
