@@ -37,7 +37,7 @@ namespace TestVegastar.Controllers
             return Ok(usergroups);
         }
 
-        // GET: api/Usergroups/5
+        // GET: api/Usergroups/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<Usergroup>> GetUsergroup(int id)
         {
@@ -58,39 +58,31 @@ namespace TestVegastar.Controllers
             return Ok(usergroup);
         }
 
-        // PUT: api/Usergroups/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        // PUT: api/Usergroups/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutUsergroup(int id, Usergroup usergroup)
+        public async Task<IActionResult> PutUsergroup(int id,[FromBody] UsergroupDto usergroupUpdated)
         {
-            if (id != usergroup.Id)
-            {
+            if (usergroupUpdated == null)
+                return BadRequest(ModelState);
+
+            if (id != usergroupUpdated.Id)
+                return BadRequest(ModelState);
+          
+            if (!UsergroupExists(id))
+                return NotFound();
+
+            if (!ModelState.IsValid)
                 return BadRequest();
-            }
 
-            _context.Entry(usergroup).State = EntityState.Modified;
+            var usergroupMap = _mapper.Map<Usergroup>(usergroupUpdated);
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UsergroupExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            _context.Update(usergroupMap);
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
         // POST: api/Usergroups
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Usergroup>> PostUsergroup([FromBody] UsergroupDto usergroupCreate)
         {
@@ -121,7 +113,7 @@ namespace TestVegastar.Controllers
             return Ok("Success");
         }
 
-        // DELETE: api/Usergroups/5
+        // DELETE: api/Usergroups/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUsergroup(int id)
         {
@@ -134,6 +126,9 @@ namespace TestVegastar.Controllers
             {
                 return NotFound();
             }
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             _context.Usergroups.Remove(usergroup);
             await _context.SaveChangesAsync();

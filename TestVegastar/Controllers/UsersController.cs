@@ -28,15 +28,35 @@ namespace TestVegastar.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
+            //var users = await _context.Users
+            //    .Include(b => b.Usergroup)
+            //    .Include(p => p.Userstate)
+            //    .ToListAsync();
+
             var users = await _context.Users
-                .Include(b => b.Usergroup)
-                .Include(p => p.Userstate)
-                .ToListAsync();
+                .Select(u => new
+                {
+                    u.Userid,
+                    u.Login,
+                    u.Password,
+                    u.Createddate,
+                    u.Userstateid,
+                    u.Usergroupid,
+                    userstate = 
+                        _context.Userstates
+                        .Select(s => new { s.Id, s.Code, s.Description })
+                        .Where(s => s.Id == u.Userstateid).ToList(),
+                    usegroups = 
+                        _context.Usergroups
+                        .Select(g => new { g.Id, g.Code, g.Description })
+                        .Where(g => g.Id == u.Usergroupid).ToList()
+                }).ToListAsync();
 
             if (_context.Users == null)
             {
                 return NotFound();
             }
+
             return Ok(users);
         }
 
@@ -64,30 +84,24 @@ namespace TestVegastar.Controllers
 
         // PUT: api/Users/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(int id, User user)
+        public async Task<IActionResult> PutUser(int id, [FromBody]UserDto userUpdated)
         {
-            if (id != user.Userid)
-            {
+            if (userUpdated == null)
+                return BadRequest(ModelState);
+
+            if (id != userUpdated.Userid)
+                return BadRequest(ModelState);
+
+            if (!UserExists(id))
+                return NotFound();
+
+            if (!ModelState.IsValid)
                 return BadRequest();
-            }
 
-            _context.Entry(user).State = EntityState.Modified;
+            var userMap = _mapper.Map<User>(userUpdated);
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            _context.Update(userMap);
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -131,6 +145,31 @@ namespace TestVegastar.Controllers
             return Ok("Success"); ;
         }
 
+        [HttpPut("Block/{id}")]
+        public async Task<IActionResult> BlockUser(int id)
+        {
+            if (_context.Users == null)
+                return NotFound();
+
+            if (!UserExists(id))
+                return NotFound();
+
+            if (!ModelState.IsValid)
+                return BadRequest();
+
+            var user = await _context.Users.FindAsync(id);
+
+            if (user.Userstateid == 1)
+            {
+                user.Usergroupid = 2;
+            }
+
+            _context.Update(user);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         // DELETE: api/Users/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -144,6 +183,9 @@ namespace TestVegastar.Controllers
             {
                 return NotFound();
             }
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();

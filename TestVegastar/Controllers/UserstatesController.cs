@@ -60,32 +60,25 @@ namespace TestVegastar.Controllers
         }
 
         // PUT: api/Userstates/{id}
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutUserstate(int id, Userstate userstate)
+        public async Task<IActionResult> PutUserstate(int id, [FromBody] UserstateDto userstateUpdated)
         {
-            if (id != userstate.Id)
-            {
+            if (userstateUpdated == null)
+                return BadRequest(ModelState);
+
+            if (id != userstateUpdated.Id)
+                return BadRequest(ModelState);
+
+            if (!UserstateExists(id))
+                return NotFound();
+
+            if (!ModelState.IsValid)
                 return BadRequest();
-            }
 
-            _context.Entry(userstate).State = EntityState.Modified;
+            var userstateMap = _mapper.Map<Userstate>(userstateUpdated);
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserstateExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            _context.Update(userstateMap);
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -121,7 +114,7 @@ namespace TestVegastar.Controllers
             return Ok("Success");
         }
 
-        // DELETE: api/Userstates/5
+        // DELETE: api/Userstates/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUserstate(int id)
         {
@@ -134,6 +127,9 @@ namespace TestVegastar.Controllers
             {
                 return NotFound();
             }
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             _context.Userstates.Remove(userstate);
             await _context.SaveChangesAsync();
